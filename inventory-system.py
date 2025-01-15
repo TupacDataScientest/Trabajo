@@ -1,4 +1,5 @@
 import os
+import json
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -11,16 +12,59 @@ class Producto:
         self.stock_minimo = stock_minimo
         self.ventas = 0
 
+def to_dict(self):
+        return {
+            "codigo": self.codigo,
+            "nombre": self.nombre,
+            "precio": self.precio,
+            "cantidad": self.cantidad,
+            "stock_minimo": self.stock_minimo,
+            "ventas": self.ventas
+        }
     def __str__(self) -> str:
-        return f"Código: {self.codigo:04d} | Nombre: {self.nombre} | Precio: ${self.precio:.2f} | Cantidad: {self.cantidad}"
-
+        return f"Código: {self.codigo:04d} | Nombre: {self.nombre} | Precio: ${self.precio:.2f} | Cantidad: {self.cantidad}" 
+    
 class SistemaInventario:
     def __init__(self):
         self.productos: Dict[int, Producto] = {}
+        self.cargar_datos()
 
     def limpiar_pantalla(self):
         os.system('cls' if os.name == 'nt' else 'clear')
 
+    def guardar_datos(self):
+    """Guarda los datos del inventario en un archivo JSON."""
+    try:
+        with open("inventario.json", "w", encoding="utf-8") as archivo:
+            datos = [producto.__dict__ for producto in self.productos.values()]
+            json.dump(datos, archivo, indent=4, ensure_ascii=False)
+        print("\nDatos guardados exitosamente.")
+    except Exception as e:
+        print(f"\nError al guardar los datos: {e}")
+        
+    def cargar_datos(self):
+    """Carga los datos del inventario desde un archivo JSON."""
+    if not os.path.exists("inventario.json"):
+        print("\nNo se encontró un archivo de datos. Se iniciará con un inventario vacío.")
+        return
+
+    try:
+        with open("inventario.json", "r", encoding="utf-8") as archivo:
+            datos = json.load(archivo)
+            for item in datos:
+                producto = Producto(
+                    codigo=item["codigo"],
+                    nombre=item["nombre"],
+                    precio=item["precio"],
+                    cantidad=item["cantidad"],
+                    stock_minimo=item["stock_minimo"]
+                )
+                producto.ventas = item.get("ventas", 0)
+                self.productos[producto.codigo] = producto
+        print("\nDatos cargados exitosamente.")
+    except Exception as e:
+        print(f"\nError al cargar los datos: {e}")
+        
     def validar_codigo(self, codigo_str: str) -> tuple[bool, Optional[int]]:
         try:
             codigo = int(codigo_str)
@@ -56,19 +100,19 @@ class SistemaInventario:
         return True
 
     def agregar_producto(self, codigo: int, nombre: str, precio: float, cantidad: int, stock_minimo: int = 5) -> bool:
-        if codigo in self.productos:
-            print("\n¡Error! El código ya existe en el inventario.")
-            return False
+    if codigo in self.productos:
+        print("\n¡Error! El código ya existe en el inventario.")
+        return False
 
-        if not self.validar_nombre(nombre):
-            return False
-        
-        self.productos[codigo] = Producto(codigo, nombre, precio, cantidad, stock_minimo)
-        print("\n¡Producto agregado exitosamente!")
-        return True
+    if not self.validar_nombre(nombre):
+        return False
 
-    def actualizar_producto(self, codigo: int, nombre: Optional[str] = None, 
-                          precio: Optional[float] = None, cantidad: Optional[int] = None) -> bool:
+    self.productos[codigo] = Producto(codigo, nombre, precio, cantidad, stock_minimo)
+    print("\n¡Producto agregado exitosamente!")
+    self.guardar_datos()  # Guardar cambios
+    return True
+
+    def actualizar_producto(self, codigo: int, nombre: Optional[str] = None, precio: Optional[float] = None, cantidad: Optional[int] = None) -> bool:
         if codigo not in self.productos:
             print("\n¡Error! El producto no existe en el inventario.")
             return False
@@ -81,9 +125,9 @@ class SistemaInventario:
         if precio is not None:
             producto.precio = precio
         if cantidad is not None:
-            # Sumar la nueva cantidad en lugar de reemplazarla
             producto.cantidad += cantidad
 
+        self.guardar_datos()
         print("\n¡Producto actualizado exitosamente!")
         return True
 
@@ -93,6 +137,7 @@ class SistemaInventario:
             return False
 
         del self.productos[codigo]
+        self.guardar_datos()
         print("\n¡Producto eliminado exitosamente!")
         return True
 
@@ -131,6 +176,7 @@ class SistemaInventario:
 
         producto.cantidad -= cantidad
         producto.ventas += cantidad
+        self.guardar_datos()
         print("\n¡Venta registrada exitosamente!")
         return True
 
